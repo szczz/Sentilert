@@ -2,7 +2,7 @@ import database
 import classes
 
 def fetchUser():
-    user = database.r.hget("User", "userId")
+    user = database.r.hget("User", "email")
 
     if user is None:
         print("\n#####################################################################################################################")
@@ -23,14 +23,13 @@ def fetchUser():
                 'email': emailAlerts
             }
 
-            user = classes.User(1, email, phone,alertPreferences, [])
+            user = classes.User(email, phone,alertPreferences, {})
 
             print("\nPlease confirm that these details are correct")
             print(user)
             option = input("\nConfirm (y/n): ")
 
             if option == 'y': 
-                database.r.hset("User", "userId", 1)
                 database.r.hset("User", "email", email)
                 database.r.hset("User", "phone", phone)
                 database.r.hset("User", "smsAlerts", smsAlerts)
@@ -42,10 +41,14 @@ def fetchUser():
             'email': database.r.hget("User", "emailAlerts")
         }
 
-        user = classes.User(database.r.hget("User", "userId"), 
-                            database.r.hget("User", "email"),
+        tickers = database.r.hgetall("UserTickers")
+        observers = {}
+        for ticker in tickers: 
+            observer = classes.TickerObserver(ticker, database.r.hget(ticker, "lowerSentiment"), database.r.hget(ticker, "upperSentiment"), database.r.hget(ticker, "WSBAlerts"))
+            observers[ticker] = (observer)
+
+        user = classes.User(database.r.hget("User", "email"),
                             database.r.hget("User", "phone"),
                             alertPreferences,
-                            []) ## TODO: you need to create the ticker system and fetch the user's tickers here
-    
+                            observers)
     return user
