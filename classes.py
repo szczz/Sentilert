@@ -1,13 +1,20 @@
+import os
 import database
 import requests
+import matplotlib.pyplot as plt 
 from datetime import date
+from twilio.rest import Client 
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 class APICommunicator:
-    def __init__(self,marketAuxAPIKey, twilioSMSAPIKey, twilioSendGridAPIKey, tickerObservers):
+    def __init__(self,marketAuxAPIKey,twilioSMSAccountSid, twilioSMSAuthToken, twilioSendGridAPIKey, tickerObservers, user):
         self.marketAuxAPIKey = marketAuxAPIKey
-        self.twilioSMSAPIKey = twilioSMSAPIKey
+        self.twilioSMSAccountSid = twilioSMSAccountSid
+        self.twilioSMSAuthToken = twilioSMSAuthToken
         self.twilioSendGridAPIKey = twilioSendGridAPIKey
         self.tickerObservers = tickerObservers
+        self.User = user
 
     def FetchSentiment(self):
         for ticker in self.tickerObservers:
@@ -27,19 +34,52 @@ class APICommunicator:
             else:
                 database.r.hset(ticker + "_History", date.today().strftime("%d/%m/%Y") + " Close", overallSentiment)
             
-            if self.tickerObservers[ticker].ReceiveSentiment(overallSentiment):
-                self.SendSMSAlert(ticker)
-                self.SendEmailAlert(ticker)
+            trigger = self.tickerObservers[ticker].ReceiveSentiment(overallSentiment)
+            if trigger is not None:
+                bound = 0
+                if trigger == "lower": bound = self.tickerObservers[ticker].lowerSentiment
+                else: bound = self.tickerObservers[ticker].upperSentiment
+
+                if self.User.alertPreferences['phone']:
+                    self.SendSMSAlert('This is a Sentilert! {symbol} sentiment has exceeded your {trigger} threshold of {bound} with a sentiment of {sentiment}!'.format(symbol = self.tickerObservers[ticker].tickerSymbol, trigger = trigger, bound = bound, sentiment = overallSentiment))
+                
+                if self.User.alertPreferences['email']:
+                    subject = 'Sentiment has shifted on {symbol}!'.format(symbol = self.tickerObservers[ticker].tickerSymbol)
+                    htmlContent = '<strong>Sentilert Notification!</strong><br><br>{symbol} sentiment has exceeded your {trigger} threshold of {bound} with a sentiment of {sentiment}!'.format(symbol = self.tickerObservers[ticker].tickerSymbol, trigger = trigger, bound = bound, sentiment = overallSentiment)
+                    self.SendEmailAlert(subject, htmlContent)
 
     def FetchWSBList(self):
-        pass
+        request = requests.get("https://tradestie.com/api/v1/apps/reddit").json()
+        for ticker in request:
+            if ticker['ticker'] in self.tickerObservers and self.tickerObservers[ticker['ticker']].wsbAlerts == 'y':
+                if self.User.alertPreferences['phone']:
+                    self.SendSMSAlert('This is a Sentilert! {symbol} has appeared in R/WallStreetBets top 50 discussed!'.format(symbol = self.tickerObservers[ticker['ticker']].tickerSymbol))
+                
+                if self.User.alertPreferences['email']:
+                    subject = '{symbol} has appeared in R/WallStreetBets top 50 discussed!'.format(symbol = self.tickerObservers[ticker['ticker']].tickerSymbol)
+                    htmlContent = '<strong>Sentilert Notification!</strong><br><br>{symbol} has appeared in R/WallStreetBets top 50 discussed!'.format(symbol = self.tickerObservers[ticker['ticker']].tickerSymbol)
+                    self.SendEmailAlert(subject, htmlContent)
 
-    def SendSMSAlert(self,observer):
-        pass
+    def SendSMSAlert(self, body):
+        client = Client(self.twilioSMSAccountSid, self.twilioSMSAuthToken) 
+        client.messages.create(   
+                                messaging_service_sid='MGc0b32f1eca4dd4599b070d0daaa70279',
+                                body=body,      
+                                to=self.User.userPhoneNumber) 
 
-    def SendEmailAlert(self,observer):
-        pass
+    def SendEmailAlert(self,subject, htmlContent ):
+        message = Mail(
+                    from_email='szczermw@mcmaster.ca',
+                    to_emails=self.User.userEmail,
+                    subject=subject,
+                    html_content=htmlContent
+        )
 
+        try:
+            sg = SendGridAPIClient(self.twilioSendGridAPIKey)
+            sg.send(message)
+        except Exception as e:
+            print(e)
 
 class TickerObserver:
     def __init__(self,tickerSymbol, lowerSentiment, upperSentiment, wsbAlerts):
@@ -49,8 +89,8 @@ class TickerObserver:
         self.wsbAlerts = wsbAlerts
 
     def ReceiveSentiment(self, sentiment):
-        if sentiment < float(self.lowerSentiment): return True
-        elif sentiment > float(self.upperSentiment): return True
+        if sentiment < float(self.lowerSentiment): return "lower"
+        elif sentiment > float(self.upperSentiment): return "upper"
         
     def ModifySentiment(self):
         database.r.hset(self.tickerSymbol, "lowerSentiment", self.lowerSentiment)
@@ -60,8 +100,21 @@ class TickerObserver:
         database.r.hset(self.tickerSymbol, "WSBAlerts", self.wsbAlerts)
 
     def GenerateReport(self):
-        pass
+        history = database.r.hgetall(self.tickerSymbol + "_History")
+        x = []
+        y = []
 
+        for sentiment in history:
+            x.append(sentiment)
+            y.append(history[sentiment])
+            
+        plt.plot(x, y) 
+        plt.xlabel('Open / Close history') 
+        plt.ylabel('Sentiment') 
+
+        plt.title('{symbol} Sentiment History'.format(symbol = self.tickerSymbol))
+
+        plt.show()
     def __repr__(self):
         return "Ticker: " + self.tickerSymbol + "\nLower Sentiment: " + self.lowerSentiment + "\nUpper Sentiment: " + self.upperSentiment + "\nWSB Alerts: " + self.wsbAlerts
 
