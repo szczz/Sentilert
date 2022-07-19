@@ -7,11 +7,15 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # database.r.delete("MSFT")
 # database.r.delete("UserTickers")
 
-marketAuxAPIKey = 'Q5efggMdvTFNF53sVFtVBjag4m7aDHkdEy5YXhas'
+marketAuxAPIKey = ''
+twilioSMSAccountSid = ''
+twilioSMSAuthToken = ''
+twilioSendGridAPIKey = ''
 
 options = ["1. User Management",
            "2. Ticker Management",
-           "3. Alert Prefrences"]
+           "3. Alert Prefrences",
+           "4. Generate Report"]
 
 tickerOptions = [ "1. Add a ticker",
                   "2. Modify a ticker",
@@ -20,13 +24,15 @@ tickerOptions = [ "1. Add a ticker",
 
 user = startup.fetchUser()
 
-communicator = classes.APICommunicator(marketAuxAPIKey, "temp", "temp", user.tickers) 
+communicator = classes.APICommunicator(marketAuxAPIKey, twilioSMSAccountSid, twilioSMSAuthToken, twilioSendGridAPIKey, user.tickers, user) 
 scheduler = BackgroundScheduler(timezone="America/Toronto")
 #scheduler.add_job(communicator.FetchSentiment, 'interval', hours=10)
 scheduler.add_job(communicator.FetchSentiment, trigger='cron', hour='8,15', minute='30')
+scheduler.add_job(communicator.FetchWSBList, trigger='cron', hour='8,15', minute='30')
 scheduler.start()
 
-#communicator.FetchSentiment()
+# communicator.FetchSentiment()
+# communicator.FetchWSBList()
 
 
 app_running = True
@@ -146,3 +152,8 @@ while(app_running):
                 database.r.hset("User", "smsAlerts", smsAlerts)
                 database.r.hset("User", "emailAlerts", emailAlerts)
                 confirmed = True
+    
+    elif option == "4": 
+        symbol = input("\nEnter the ticker symbol you wish to generate a report for: ")
+        ticker = classes.TickerObserver(database.r.hget(symbol, "symbol"), database.r.hget(symbol, "lowerSentiment"), database.r.hget(symbol, "upperSentiment"), database.r.hget(symbol, "WSBAlerts"))
+        ticker.GenerateReport()
