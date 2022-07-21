@@ -30,12 +30,13 @@ def fetchUser():
             option = input("\nConfirm (y/n): ")
 
             if option == 'y': 
-                database.r.hset("User", "email", email)
-                database.r.hset("User", "phone", phone)
-                database.r.hset("User", "smsAlerts", smsAlerts)
-                database.r.hset("User", "emailAlerts", emailAlerts)
+                user.UpdateUser()
                 confirmed = True
     else:
+        print("\n#####################################################################################################################")
+        print("Fetching your profile. Please wait.")
+        print("#####################################################################################################################\n")
+
         alertPreferences = {
             'phone': database.r.hget("User", "smsAlerts"),
             'email': database.r.hget("User", "emailAlerts")
