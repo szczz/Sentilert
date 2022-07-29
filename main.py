@@ -1,27 +1,30 @@
 import classes
 import startup
 from apscheduler.schedulers.background import BackgroundScheduler
+from dotenv import load_dotenv
+
+load_dotenv('/.env') # Fetch the environment variables
 
 options = ["1. User Management",
            "2. Ticker Management",
            "3. Alert Preferences",
            "4. Generate Report"]
 
-tickerOptions = [ "1. Add a ticker",
+tickerOptions = [ "1. Add a ticker", 
                   "2. Modify a ticker",
                   "3. Delete a ticker"]
 
 user = startup.fetchUser()
 
 communicator = classes.APICommunicator(user.tickers, user) 
+
 scheduler = BackgroundScheduler(timezone="America/Toronto")
-#scheduler.add_job(communicator.FetchSentiment, 'interval', hours=10)
 scheduler.add_job(communicator.FetchSentiment, trigger='cron', hour='8,15', minute='30')
 scheduler.add_job(communicator.FetchWSBList, trigger='cron', hour='8,15', minute='30')
 scheduler.start()
 
-# communicator.FetchSentiment()
-# communicator.FetchWSBList()
+# communicator.FetchSentiment() # Uncomment these to test instantly.
+# communicator.FetchWSBList() # Uncomment these to test instantly.
 
 app_running = True
 while(app_running):
@@ -35,6 +38,7 @@ while(app_running):
         option = input("\nAre you sure? This will disable alerts and sentiment checks (y/n): ")
         if option == "y": app_running = False
 
+    # User Management
     elif option == "1": 
         print("\nEnter you updated phone number and email address here.")
 
@@ -52,7 +56,8 @@ while(app_running):
             if option == 'y': 
                 user.UpdateUser()
                 confirmed = True
-                
+
+    # Ticker Management       
     elif option == '2':
         subMenu = True
         while(subMenu):
@@ -62,6 +67,8 @@ while(app_running):
             option = input("\nEnter your choice here or press m to return to the main menu: ")
             if option == "m": 
                 subMenu = False
+
+            # Add a ticker
             elif option == "1":
                 confirmed = False
                 while(not confirmed):
@@ -85,6 +92,7 @@ while(app_running):
                         user.AddTicker(ticker)
                         confirmed = True
 
+            # Modify a ticker
             elif option == "2":
                 confirmed = False
                 while(not confirmed):
@@ -104,6 +112,7 @@ while(app_running):
                         ticker.UpdateAlerts()
                         confirmed = True
 
+            # Delete a ticker
             elif option == "3":
                 confirmed = False
                 while(not confirmed):
@@ -117,6 +126,7 @@ while(app_running):
                         user.DeleteTicker(ticker) 
                         confirmed = True
 
+    # Alert Preferences
     elif option == "3": 
         print("\nEnter your updated alert preferences here")
 
@@ -140,6 +150,7 @@ while(app_running):
                 user.UpdateUser()
                 confirmed = True
     
+    # Generate a report
     elif option == "4": 
         symbol = input("\nEnter the ticker symbol you wish to generate a report for: ")
         ticker = user.tickers[symbol] 

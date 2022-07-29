@@ -2,14 +2,15 @@ import database
 import classes
 
 def fetchUser():
-    user = database.r.hget("User", "email")
+    user = database.r.exists("User")
 
-    if user is None:
-        print("\n#####################################################################################################################")
-        print("#####################################################################################################################")
-        print("Welcome to Sentilert! Please enter your contact details in the following prompt so that you can recieve notifications")
-        print("#####################################################################################################################")
-        print("#####################################################################################################################\n")
+    # If the user is not found in the database, collect their details and create a user profile
+    if user == 0:
+        print("\n######################################################################################################################")
+        print("######################################################################################################################")
+        print("Welcome to Sentilert! Please enter your contact details in the following prompts so that you can recieve notifications")
+        print("######################################################################################################################")
+        print("######################################################################################################################\n")
 
         confirmed = False
         while(not confirmed):
@@ -33,6 +34,7 @@ def fetchUser():
                 user.UpdateUser()
                 confirmed = True
     else:
+        # Otherwise, fetch the user's profile and tickers
         print("\n#####################################################################################################################")
         print("Fetching your profile. Please wait.")
         print("#####################################################################################################################\n")
