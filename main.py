@@ -15,7 +15,6 @@ tickerOptions = [ "1. Add a ticker",
                   "3. Delete a ticker"]
 
 user = startup.fetchUser()
-
 communicator = classes.APICommunicator(user.tickers, user) 
 
 scheduler = BackgroundScheduler(timezone="America/Toronto")
@@ -61,6 +60,7 @@ while(app_running):
     elif option == '2':
         subMenu = True
         while(subMenu):
+            print("\n")
             for o in tickerOptions:
                 print(o)
 
@@ -72,6 +72,8 @@ while(app_running):
             elif option == "1":
                 confirmed = False
                 while(not confirmed):
+                    user.PrintTickers()
+
                     if len(user.tickers) > 10:
                         print("\nYou've exceeded the limit of tracked tickers. Please delete a ticker if you wish to add a new one\n")
                         break
@@ -96,6 +98,8 @@ while(app_running):
             elif option == "2":
                 confirmed = False
                 while(not confirmed):
+                    user.PrintTickers()
+
                     symbol = input("\nEnter the ticker symbol you wish to update: ")
                     lowerSentiment = input("\nLower sentiment tolerance: ")
                     upperSentiment = input("\nUpper sentiment tolerance: ")
@@ -116,6 +120,8 @@ while(app_running):
             elif option == "3":
                 confirmed = False
                 while(not confirmed):
+                    user.PrintTickers()
+
                     symbol = input("\nEnter the ticker symbol you wish to delete: ")
                     ticker = user.tickers[symbol] 
                     print("\nPlease confirm that this is the ticker you wish to delete")
@@ -152,6 +158,7 @@ while(app_running):
     
     # Generate a report
     elif option == "4": 
+        user.PrintTickers()
         symbol = input("\nEnter the ticker symbol you wish to generate a report for: ")
         ticker = user.tickers[symbol] 
         ticker.GenerateReport()

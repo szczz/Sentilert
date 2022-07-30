@@ -160,7 +160,6 @@ class TickerObserver:
             y.append(float(history[sentiment]))
 
         # Plot and display the sentiment data
-
         plt.figure(figsize=(20,20))
         plt.plot(x, y) 
         plt.xticks(rotation=90)
@@ -195,3 +194,10 @@ class User:
         database.r.hset("User", "phone", self.userPhoneNumber)
         database.r.hset("User", "smsAlerts", self.alertPreferences['phone'])
         database.r.hset("User", "emailAlerts", self.alertPreferences['email'])
+
+    def PrintTickers(self):
+        print("\n----------------")
+        print("Current tickers")
+        print("----------------\n")
+        for ticker in self.tickers: 
+            print(ticker)
